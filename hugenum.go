@@ -12,7 +12,7 @@ const (
 )
 
 // powTenToName is a map containing the names for powers of 10 (only multiples of 3 for Engineering Notation).
-var powTenToName = map[int]string{
+var powTenToName = map[int32]string{
 	0:   "",
 	3:   "thousand",
 	6:   "million",
@@ -127,14 +127,21 @@ var powTenToName = map[int]string{
 	333: "decicentillion",
 }
 
-// BigNum represents a big number.
-type BigNum struct {
+// HugeNum represents a big number.
+type HugeNum struct {
 	value float64
-	exp   int
+	exp   int32
+}
+
+func New(value float64, exp int32) *HugeNum {
+	return &HugeNum{
+		value: value,
+		exp:   exp,
+	}
 }
 
 // normalize normalizes a number to engineering notation.
-func (b *BigNum) normalize() {
+func (b *HugeNum) normalize() {
 	if b.value < 1 && b.exp != 0 {
 		// e.g., 0.1E6 is converted to 100E3 ([0.1, 6] = [100, 3])
 		b.value *= tenCubed
@@ -152,7 +159,7 @@ func (b *BigNum) normalize() {
 }
 
 // align computes the equivalent number at 1.Eexp (note: assumes exp is greater than b.exp).
-func (b *BigNum) align(exp int) {
+func (b *HugeNum) align(exp int32) {
 	d := exp - b.exp
 	if d > 0 {
 		if d <= maxMagnitude {
@@ -165,7 +172,7 @@ func (b *BigNum) align(exp int) {
 }
 
 // Add adds a number to b.
-func (b *BigNum) Add(other *BigNum) {
+func (b *HugeNum) Add(other *HugeNum) {
 	if other.exp < b.exp {
 		other.align(b.exp)
 	} else {
@@ -176,7 +183,7 @@ func (b *BigNum) Add(other *BigNum) {
 }
 
 // Subtract subtracts a number from b.
-func (b *BigNum) Subtract(other *BigNum) {
+func (b *HugeNum) Subtract(other *HugeNum) {
 	if other.exp < b.exp {
 		other.align(b.exp)
 	} else {
@@ -187,7 +194,7 @@ func (b *BigNum) Subtract(other *BigNum) {
 }
 
 // Multiply multiplies b by a factor.
-func (b *BigNum) Multiply(factor float64) {
+func (b *HugeNum) Multiply(factor float64) {
 	// We do not support negative numbers.
 	if factor >= 0 {
 		b.value *= factor
@@ -196,34 +203,21 @@ func (b *BigNum) Multiply(factor float64) {
 }
 
 // Divide divides b by a divisor.
-func (b *BigNum) Divide(divisor float64) {
+func (b *HugeNum) Divide(divisor float64) {
 	if divisor > 0 {
 		b.value /= divisor
 		b.normalize()
 	}
 }
 
-// GetValue returns the number value as a string with the specified precision.
-func (b *BigNum) GetValue(precision int) string {
-	if precision <= 0 {
-		precision = 3
-	}
-	return strconv.FormatFloat(b.value, 'f', precision, 64)
-}
-
-// GetExpName returns the exponent name as a string.
-func (b *BigNum) GetExpName() string {
+// ExpName returns the exponent name as a string.
+func (b *HugeNum) ExpName() string {
 	return powTenToName[b.exp]
 }
 
-// GetExp returns the exponent as a string.
-func (b *BigNum) GetExp() int {
-	return b.exp
-}
-
-// String returns a string representation of the BigNum.
-func (b *BigNum) String() string {
-	expName := powTenToName[b.exp]
+// String returns a string representation of the HugeNum.
+func (b *HugeNum) String() string {
+	expName := b.ExpName()
 	if expName == "" {
 		return strconv.FormatFloat(b.value, 'f', 3, 64)
 	}

@@ -22,10 +22,10 @@ import "github.com/TrungKenbi/hugenum"
 
 func main() {
     // Create a new HugeNumber
-    num1 := hugenum.NewHugeNumber(1.23, 6) // 1.23 million
+    num1 := hugenum.New(1.23, 6) // 1.23 million
 
     // Perform arithmetic operations
-    num2 := hugenum.NewHugeNumber(4.56, 3) // 4.56 thousand
+    num2 := hugenum.New(4.56, 3) // 4.56 thousand
     num1.Add(num2)                         // num1 is now 1.234560 million
 
     // Convert to string representation
