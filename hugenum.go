@@ -129,97 +129,129 @@ var powTenToName = map[int32]string{
 
 // HugeNum represents a big number.
 type HugeNum struct {
-	value float64
-	exp   int32
+	Value float64
+	Exp   int32
 }
 
 func New(value float64, exp int32) *HugeNum {
 	return &HugeNum{
-		value: value,
-		exp:   exp,
+		Value: value,
+		Exp:   exp,
 	}
+}
+
+func NewExp0(value float64) *HugeNum {
+	return New(value, 0)
 }
 
 // normalize normalizes a number to engineering notation.
-func (b *HugeNum) normalize() {
-	if b.value < 1 && b.exp != 0 {
-		// e.g., 0.1E6 is converted to 100E3 ([0.1, 6] = [100, 3])
-		b.value *= tenCubed
-		b.exp -= 3
-	} else if b.value >= tenCubed {
-		// e.g., 10000E3 is converted to 10E6 ([10000, 3] = [10, 6])
-		for b.value >= tenCubed {
-			b.value /= tenCubed
-			b.exp += 3
-		}
-	} else if b.value <= 0 {
-		b.exp = 0
-		b.value = 0
+func (h *HugeNum) normalize() {
+	if h.Value == 0 {
+		h.Exp = 0
+		return
 	}
+
+	// Handle negative values
+	sign := 1.0
+	if h.Value < 0 {
+		sign = -1.0
+		h.Value = -h.Value
+	}
+
+	// Adjust value and exponent to get value in range [1, 1000)
+	for h.Value >= tenCubed {
+		h.Value /= tenCubed
+		h.Exp += 3
+	}
+	for h.Value < 1 {
+		h.Value *= tenCubed
+		h.Exp -= 3
+	}
+
+	// Adjust exponent to be a multiple of 3
+	remainder := h.Exp % 3
+	h.Value *= math.Pow10(int(remainder))
+	h.Exp -= remainder
+
+	// Restore sign
+	h.Value *= sign
 }
 
-// align computes the equivalent number at 1.Eexp (note: assumes exp is greater than b.exp).
-func (b *HugeNum) align(exp int32) {
-	d := exp - b.exp
+// align computes the equivalent number at 1.Eexp (note: assumes Exp is greater than b.exp).
+func (h *HugeNum) align(exp int32) {
+	d := exp - h.Exp
 	if d > 0 {
 		if d <= maxMagnitude {
-			b.value /= math.Pow(10, float64(d))
+			h.Value /= math.Pow(10, float64(d))
 		} else {
-			b.value = 0
+			h.Value = 0
 		}
-		b.exp = exp
+		h.Exp = exp
 	}
 }
 
 // Add adds a number to b.
-func (b *HugeNum) Add(other *HugeNum) {
-	if other.exp < b.exp {
-		other.align(b.exp)
+func (h *HugeNum) Add(other *HugeNum) {
+	if other.Exp < h.Exp {
+		other.align(h.Exp)
 	} else {
-		b.align(other.exp)
+		h.align(other.Exp)
 	}
-	b.value += other.value
-	b.normalize()
+	h.Value += other.Value
+	h.normalize()
 }
 
 // Subtract subtracts a number from b.
-func (b *HugeNum) Subtract(other *HugeNum) {
-	if other.exp < b.exp {
-		other.align(b.exp)
+func (h *HugeNum) Subtract(other *HugeNum) {
+	if other.Exp < h.Exp {
+		other.align(h.Exp)
 	} else {
-		b.align(other.exp)
+		h.align(other.Exp)
 	}
-	b.value -= other.value
-	b.normalize()
+	h.Value -= other.Value
+	h.normalize()
 }
 
-// Multiply multiplies b by a factor.
-func (b *HugeNum) Multiply(factor float64) {
+// Multiply multiplies two HugeNum instances.
+func (h *HugeNum) Multiply(other *HugeNum) {
+	h.Value *= other.Value
+	h.Exp += other.Exp
+	h.normalize()
+}
+
+// MultiplyFactor multiplies b by a factor.
+func (h *HugeNum) MultiplyFactor(factor float64) {
 	// We do not support negative numbers.
 	if factor >= 0 {
-		b.value *= factor
-		b.normalize()
+		h.Value *= factor
+		h.normalize()
 	}
 }
 
 // Divide divides b by a divisor.
-func (b *HugeNum) Divide(divisor float64) {
+func (h *HugeNum) Divide(divisor float64) {
 	if divisor > 0 {
-		b.value /= divisor
-		b.normalize()
+		h.Value /= divisor
+		h.normalize()
 	}
+}
+
+// PowTen raises b to the power of 10^n.
+func (h *HugeNum) PowTen(n int32) {
+	h.Exp += n
+	h.normalize()
 }
 
 // ExpName returns the exponent name as a string.
-func (b *HugeNum) ExpName() string {
-	return powTenToName[b.exp]
+func (h *HugeNum) ExpName() string {
+	return powTenToName[h.Exp]
 }
 
 // String returns a string representation of the HugeNum.
-func (b *HugeNum) String() string {
-	expName := b.ExpName()
+func (h *HugeNum) String() string {
+	expName := h.ExpName()
 	if expName == "" {
-		return strconv.FormatFloat(b.value, 'f', 3, 64)
+		return strconv.FormatFloat(h.Value, 'f', 3, 64)
 	}
-	return fmt.Sprintf("%g %s", b.value, expName)
+	return fmt.Sprintf("%g %s", h.Value, expName)
 }
